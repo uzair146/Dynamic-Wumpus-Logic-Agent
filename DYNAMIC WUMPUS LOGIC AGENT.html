@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Dynamic Wumpus Logic Agent</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #060a14;
+      font-family: 'Inter', 'JetBrains Mono', monospace;
+      padding: 1.5rem;
+      min-height: 100vh;
+    }
+
+    .pro-dashboard {
+      max-width: 1440px;
+      margin: 0 auto;
+      background: #0c1020;
+      border-radius: 28px;
+      box-shadow: 0 25px 45px -10px rgba(0, 0, 0, 0.8);
+      border: 1px solid #2a2e4a;
+      overflow: hidden;
+    }
+
+    .dash-header {
+      background: #080c18;
+      padding: 1rem 2rem;
+      border-bottom: 2px solid #6e4aff;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .logo-area h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #c084fc, #60a5fa, #34d399);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: -0.3px;
+    }
+    .logo-area p {
+      display: none;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pro-btn {
+      background: #1a1f2e;
+      border: 1px solid #3a3a5a;
+      padding: 8px 20px;
+      border-radius: 40px;
+      font-weight: 600;
+      font-size: 0.75rem;
+      font-family: 'Inter', monospace;
+      color: #d9e2ef;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .pro-btn:hover {
+      background: #2d3348;
+      transform: translateY(-1px);
+      border-color: #6e4aff;
+    }
+    .btn-primary {
+      background: #6e4aff;
+      border-color: #8b6eff;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #8a6dff;
+    }
+    .active-auto {
+      background: #ff8c42;
+      border-color: #ffaa66;
+      color: #0f0a1a;
+    }
+
+    /* REVERSED LAYOUT: GRID RIGHT, SENSORS LEFT */
+    .main-layout {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.8rem;
+      padding: 2rem;
+      flex-direction: row-reverse;
+    }
+
+    .grid-container {
+      flex: 2.2;
+      min-width: 300px;
+      background: #0a0f1a;
+      border-radius: 24px;
+      padding: 1.2rem;
+      border: 1px solid #2a2e4a;
+    }
+
+    .wumpus-grid {
+      display: grid;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .grid-cell {
+      background: #111725;
+      border-radius: 16px;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.12s ease;
+      border: 1.5px solid #2a2e4a;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .grid-cell:hover { transform: scale(1.02); border-color: #8b6eff; background: #1a1f32; }
+    .coord-text { font-size: 8px; color: #6e78a0; margin-bottom: 3px; font-weight: 500; }
+    .cell-icon { font-size: 1.5rem; line-height: 1; }
+    .percept-symbol { font-size: 7px; color: #9aa9e6; margin-top: 2px; }
+
+    .cell-safe { background: #0f3b2e; border-color: #2dd4bf; box-shadow: 0 0 6px #2dd4bf60; }
+    .cell-danger { background: #991b1b; border-color: #f87171; }
+    .cell-agent { background: #7c3aed; border-color: #c084fc; box-shadow: 0 0 14px #a78bfa; }
+    .cell-unknown { background: #1a1f30; border-color: #3b3f6e; }
+    .cell-visited { background: #1e2a3a; border-color: #5e6e9e; }
+    .cell-frontier { background: #7c5c1a; border-color: #fbbf24; box-shadow: 0 0 6px #f59e0b; }
+    .cell-gold-glow { background: #b45f1b; border-color: #ffb347; box-shadow: 0 0 18px #ffb347; animation: pulse 0.4s ease-in-out 3; }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); border-color: #ffdd88; }
+      100% { transform: scale(1); }
+    }
+
+    .info-panel {
+      flex: 1.2;
+      min-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .metric-card {
+      background: #0a0f1a;
+      border-radius: 20px;
+      padding: 1.2rem;
+      border: 1px solid #2a2a4a;
+    }
+
+    .metric-title {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      color: #8b9eff;
+      margin-bottom: 12px;
+    }
+
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .sensor-item {
+      background: #050810;
+      border-radius: 16px;
+      padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .sensor-label {
+      color: #8a96b8;
+    }
+    .sensor-status {
+      font-weight: 700;
+      transition: all 0.2s ease;
+    }
+    .status-on {
+      color: #fbbf24;
+      text-shadow: 0 0 2px #f59e0b;
+    }
+    .status-off {
+      color: #4a5578;
+    }
+    .status-collected {
+      color: #34d399;
+      text-shadow: 0 0 2px #34d399;
+    }
+    .status-glitter {
+      color: #fcd34d;
+      text-shadow: 0 0 6px #fbbf24;
+      animation: glitterPulse 0.4s ease-in-out 3;
+    }
+    @keyframes glitterPulse {
+      0% { opacity: 0.7; text-shadow: 0 0 2px #fbbf24; }
+      100% { opacity: 1; text-shadow: 0 0 12px #ffcc44; }
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    .stat-box {
+      background: #050810;
+      border-radius: 16px;
+      padding: 10px;
+      text-align: center;
+      flex: 1;
+    }
+    .stat-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #e2eaff;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .stat-label {
+      font-size: 0.6rem;
+      color: #6e7aa0;
+    }
+
+    .game-status-alert {
+      background: #0a0f1a;
+      border-radius: 20px;
+      padding: 14px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      border-left: 4px solid;
+      transition: all 0.2s ease;
+    }
+    .status-active {
+      border-left-color: #34d399;
+      color: #a7f3d0;
+    }
+    .status-dead {
+      border-left-color: #f87171;
+      color: #fecaca;
+      background: #1a0a0a;
+    }
+    .status-victory-pending {
+      border-left-color: #fbbf24;
+      color: #fef3c7;
+      background: #1a1508;
+      animation: victoryPulse 0.6s ease-in-out infinite;
+    }
+    .status-victory {
+      border-left-color: #fbbf24;
+      color: #fef3c7;
+      background: #1a1508;
+    }
+    @keyframes victoryPulse {
+      0% { border-left-color: #fbbf24; box-shadow: 0 0 0px #fbbf24; }
+      100% { border-left-color: #ffdd88; box-shadow: 0 0 10px #fbbf24; }
+    }
+
+    hr {
+      border-color: #2a2e4a;
+      margin: 12px 0;
+    }
+    
+    .death-marker {
+      font-size: 1.2rem;
+      margin-right: 6px;
+    }
+  </style>
+</head>
+<body>
+<div class="pro-dashboard">
+  <div class="dash-header">
+    <div class="logo-area">
+      <h1>DYNAMIC WUMPUS LOGIC AGENT</h1>
+    </div>
+    <div class="btn-group">
+      <div style="display: flex; gap: 8px; background: #0a0f1a; padding: 0 12px; border-radius: 40px; align-items: center;">
+        <span style="font-size:0.7rem; color:#8a96b8;">R:</span><input type="number" id="worldRows" value="5" min="3" max="7" style="width:45px; background:#1a1f2e; border:1px solid #3a3a5a; color:#e2eaff; border-radius:20px; padding:4px; text-align:center;">
+        <span style="font-size:0.7rem; color:#8a96b8;">C:</span><input type="number" id="worldCols" value="5" min="3" max="7" style="width:45px; background:#1a1f2e; border:1px solid #3a3a5a; color:#e2eaff; border-radius:20px; padding:4px; text-align:center;">
+      </div>
+      <button class="pro-btn" id="newHuntBtn">⟳ NEW HUNT</button>
+      <button class="pro-btn btn-primary" id="autoToggleBtn">▶ AUTO HUNT</button>
+      <button class="pro-btn" id="stepBtn">⚡ STEP</button>
+      <button class="pro-btn" id="revealBtn">🗺 REVEAL</button>
+    </div>
+  </div>
+
+  <!-- REVERSED LAYOUT: Grid Right, Sensors Left -->
+  <div class="main-layout">
+    <div class="grid-container">
+      <div id="wumpusGrid" class="wumpus-grid"></div>
+    </div>
+
+    <div class="info-panel">
+      <div class="metric-card">
+        <div class="metric-title">⚡ SENSOR READINGS</div>
+        <div class="sensor-grid">
+          <div class="sensor-item"><span class="sensor-label">🌊 BREEZE</span><span id="breezeStat" class="sensor-status status-off">OFF</span></div>
+          <div class="sensor-item"><span class="sensor-label">💀 STENCH</span><span id="stenchStat" class="sensor-status status-off">OFF</span></div>
+          <div class="sensor-item"><span class="sensor-label">💰 GOLD</span><span id="goldStat" class="sensor-status status-off">NO</span></div>
+          <div class="sensor-item"><span class="sensor-label">✨ GLITTER</span><span id="glitterStat" class="sensor-status status-off">NONE</span></div>
+        </div>
+      </div>
+
+      <div id="gameStatusPanel" class="game-status-alert status-active">
+        🔮 ACTIVE · HUNTING
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-title">📊 AGENT METRICS</div>
+        <div class="stat-row">
+          <div class="stat-box"><div class="stat-number" id="moveCount">0</div><div class="stat-label">MOVES</div></div>
+          <div class="stat-box"><div class="stat-number" id="safeCount">0</div><div class="stat-label">SAFE</div></div>
+          <div class="stat-box"><div class="stat-number" id="inferenceCount">0</div><div class="stat-label">RESOLVE</div></div>
+        </div>
+        <hr>
+        <div class="stat-row">
+          <div class="stat-box"><div class="stat-number" id="frontierCount">0</div><div class="stat-label">FRONTIER</div></div>
+          <div class="stat-box"><div class="stat-number" id="unknownCount">0</div><div class="stat-label">UNKNOWN</div></div>
+          <div class="stat-box"><div class="stat-number" id="visitedCount">0</div><div class="stat-label">VISITED</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ================================
+  // DYNAMIC WUMPUS LOGIC AGENT
+  // Messages: "Agent fell into a pit!" or "Agent was killed by the Wumpus!"
+  // ================================
+  let ROWS = 5, COLS = 5;
+  let realWorld = {};
+  let kbBelief = {};
+  let agent = { x: 0, y: 0 };
+  let inferenceTotal = 0, movesTotal = 0;
+  let gameOver = false, goldFound = false, gameWin = false;
+  let deathCause = null;   // 'pit' or 'wumpus'
+  let victoryTimer = null;
+  let revealActive = false;
+  let autoEnabled = false, autoInterval = null;
+  let pendingVictoryCell = null;
+  let isVictoryPending = false;
+
+  function cid(r,c) { return `${r}_${c}`; }
+  function inside(r,c) { return r>=0 && r<ROWS && c>=0 && c<COLS; }
+  
+  function getShuffledNeighbors(r,c) {
+    let n = [];
+    if(inside(r-1,c)) n.push([r-1,c]);
+    if(inside(r+1,c)) n.push([r+1,c]);
+    if(inside(r,c-1)) n.push([r,c-1]);
+    if(inside(r,c+1)) n.push([r,c+1]);
+    for(let i=n.length-1;i>0;i--) {
+      let j = Math.floor(Math.random()*(i+1));
+      [n[i], n[j]] = [n[j], n[i]];
+    }
+    return n;
+  }
+  
+  function shuffle(arr) { for(let i=arr.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]]; } }
+
+  function generateWorld() {
+    ROWS = Math.min(7, Math.max(3, parseInt(document.getElementById('worldRows').value) || 5));
+    COLS = Math.min(7, Math.max(3, parseInt(document.getElementById('worldCols').value) || 5));
+    realWorld = {};
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) realWorld[cid(i,j)] = { pit:false, wump:false, gold:false, breeze:false, stench:false, visited:false };
+    let freeCells = [];
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) if(!(i===0 && j===0)) freeCells.push([i,j]);
+    shuffle(freeCells);
+    let pitCount = Math.max(1, Math.floor(ROWS*COLS*0.15));
+    for(let k=0;k<pitCount && k<freeCells.length;k++) realWorld[cid(freeCells[k][0], freeCells[k][1])].pit = true;
+    let wumpIdx = pitCount % freeCells.length;
+    realWorld[cid(freeCells[wumpIdx][0], freeCells[wumpIdx][1])].wump = true;
+    let goldIdx = (pitCount+2) % freeCells.length;
+    realWorld[cid(freeCells[goldIdx][0], freeCells[goldIdx][1])].gold = true;
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let cur = realWorld[cid(i,j)];
+      if(inside(i-1,j)) { if(realWorld[cid(i-1,j)].pit) cur.breeze = true; if(realWorld[cid(i-1,j)].wump) cur.stench = true; }
+      if(inside(i+1,j)) { if(realWorld[cid(i+1,j)].pit) cur.breeze = true; if(realWorld[cid(i+1,j)].wump) cur.stench = true; }
+      if(inside(i,j-1)) { if(realWorld[cid(i,j-1)].pit) cur.breeze = true; if(realWorld[cid(i,j-1)].wump) cur.stench = true; }
+      if(inside(i,j+1)) { if(realWorld[cid(i,j+1)].pit) cur.breeze = true; if(realWorld[cid(i,j+1)].wump) cur.stench = true; }
+    }
+  }
+
+  function resetKB() {
+    if(victoryTimer) { clearTimeout(victoryTimer); victoryTimer = null; }
+    pendingVictoryCell = null;
+    isVictoryPending = false;
+    deathCause = null;
+    kbBelief = {};
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      kbBelief[cid(i,j)] = { safe: false, frontier: false, visited: false };
+    }
+    kbBelief[cid(0,0)].safe = true;
+    inferenceTotal = 0; movesTotal = 0; gameOver = false; goldFound = false; gameWin = false;
+    if(autoInterval) { clearInterval(autoInterval); autoInterval=null; autoEnabled=false; document.getElementById('autoToggleBtn').innerHTML='▶ AUTO HUNT'; document.getElementById('autoToggleBtn').classList.remove('active-auto'); }
+  }
+
+  function updateFrontier() {
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let key = cid(i,j);
+      if(!kbBelief[key].safe && !realWorld[key].visited) kbBelief[key].frontier = false;
+    }
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let cell = realWorld[cid(i,j)];
+      if(cell.visited && (cell.breeze || cell.stench)) {
+        if(inside(i-1,j)) { let nKey=cid(i-1,j); if(!realWorld[nKey].visited && !kbBelief[nKey].safe) kbBelief[nKey].frontier=true; }
+        if(inside(i+1,j)) { let nKey=cid(i+1,j); if(!realWorld[nKey].visited && !kbBelief[nKey].safe) kbBelief[nKey].frontier=true; }
+        if(inside(i,j-1)) { let nKey=cid(i,j-1); if(!realWorld[nKey].visited && !kbBelief[nKey].safe) kbBelief[nKey].frontier=true; }
+        if(inside(i,j+1)) { let nKey=cid(i,j+1); if(!realWorld[nKey].visited && !kbBelief[nKey].safe) kbBelief[nKey].frontier=true; }
+      }
+    }
+  }
+
+  function resolutionProve(cellKey, queryType) {
+    let clauses = [];
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let cidc = cid(i,j);
+      let cellData = realWorld[cidc];
+      if(!cellData.visited) continue;
+      let nb = [];
+      if(inside(i-1,j)) nb.push(cid(i-1,j));
+      if(inside(i+1,j)) nb.push(cid(i+1,j));
+      if(inside(i,j-1)) nb.push(cid(i,j-1));
+      if(inside(i,j+1)) nb.push(cid(i,j+1));
+      if(!cellData.breeze) nb.forEach(k => clauses.push([{ type:'P', cell:k, sign:false }]));
+      else { let disj = nb.map(k => ({ type:'P', cell:k, sign:true })); if(disj.length) clauses.push(disj); }
+      if(!cellData.stench) nb.forEach(k => clauses.push([{ type:'W', cell:k, sign:false }]));
+      else { let disj2 = nb.map(k => ({ type:'W', cell:k, sign:true })); if(disj2.length) clauses.push(disj2); }
+    }
+    clauses.push([{ type: queryType, cell: cellKey, sign: true }]);
+    let work = clauses.map(c => [...c]);
+    let steps = 0;
+    for(let iter=0; iter<180; iter++) {
+      let newClauses = [];
+      let len = work.length;
+      for(let i=0;i<len;i++) for(let j=i+1;j<len;j++) {
+        let ci = work[i], cj = work[j];
+        for(let li of ci) for(let lj of cj) {
+          if(li.type === lj.type && li.cell === lj.cell && li.sign !== lj.sign) {
+            let resolvent = [];
+            for(let l of ci) if(!(l.type===li.type && l.cell===li.cell && l.sign===li.sign)) resolvent.push(l);
+            for(let l of cj) if(!(l.type===lj.type && l.cell===lj.cell && l.sign===lj.sign)) resolvent.push(l);
+            let uniqMap = new Map();
+            for(let l of resolvent) { let key = l.type+l.cell+(l.sign?'T':'F'); if(!uniqMap.has(key)) uniqMap.set(key,l); }
+            let uniq = Array.from(uniqMap.values());
+            let taut = false;
+            for(let a=0;a<uniq.length;a++) for(let b=a+1;b<uniq.length;b++) if(uniq[a].type===uniq[b].type && uniq[a].cell===uniq[b].cell && uniq[a].sign!==uniq[b].sign) taut=true;
+            if(!taut) {
+              if(uniq.length===0) { inferenceTotal += steps+1; return true; }
+              let already = false;
+              for(let cl of work) if(JSON.stringify(cl)===JSON.stringify(uniq)) { already=true; break; }
+              if(!already) newClauses.push(uniq);
+              steps++;
+            }
+          }
+        }
+      }
+      if(newClauses.length===0) break;
+      work.push(...newClauses);
+    }
+    inferenceTotal += steps;
+    return false;
+  }
+  
+  function proveCellSafe(r,c){
+    let key = cid(r,c);
+    if(kbBelief[key].safe) return true;
+    let noPit = resolutionProve(key, 'P');
+    let noWump = resolutionProve(key, 'W');
+    if(noPit && noWump) { kbBelief[key].safe = true; kbBelief[key].frontier = false; return true; }
+    return false;
+  }
+
+  function perceiveAndLearn(r,c){
+    let cell = realWorld[cid(r,c)];
+    let before = inferenceTotal;
+    if(inside(r-1,c) && !cell.breeze) kbBelief[cid(r-1,c)].safe = true;
+    if(inside(r+1,c) && !cell.breeze) kbBelief[cid(r+1,c)].safe = true;
+    if(inside(r,c-1) && !cell.breeze) kbBelief[cid(r,c-1)].safe = true;
+    if(inside(r,c+1) && !cell.breeze) kbBelief[cid(r,c+1)].safe = true;
+    if(inside(r-1,c) && !cell.stench) kbBelief[cid(r-1,c)].safe = true;
+    if(inside(r+1,c) && !cell.stench) kbBelief[cid(r+1,c)].safe = true;
+    if(inside(r,c-1) && !cell.stench) kbBelief[cid(r,c-1)].safe = true;
+    if(inside(r,c+1) && !cell.stench) kbBelief[cid(r,c+1)].safe = true;
+    
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      if(!realWorld[cid(i,j)].visited && !kbBelief[cid(i,j)].safe) proveCellSafe(i,j);
+    }
+    updateFrontier();
+    return inferenceTotal - before;
+  }
+
+  function completeVictory() {
+    gameWin = true;
+    goldFound = true;
+    isVictoryPending = false;
+    pendingVictoryCell = null;
+    if(victoryTimer) victoryTimer = null;
+    renderAll();
+    if(autoEnabled) toggleAuto();
+  }
+
+  function attemptMove(nx, ny){
+    if(gameOver || gameWin || isVictoryPending) return false;
+    if(Math.abs(nx-agent.x)+Math.abs(ny-agent.y) !== 1) return false;
+    if(!inside(nx,ny)) return false;
+    let targetId = cid(nx,ny);
+    if(!realWorld[targetId].visited && !kbBelief[targetId].safe) return false;
+    
+    agent = { x:nx, y:ny };
+    movesTotal++;
+    let cell = realWorld[targetId];
+    
+    if(!cell.visited){
+      cell.visited = true;
+      kbBelief[targetId].visited = true;
+      
+      // PIT DEATH - specific message
+      if(cell.pit) { 
+        gameOver = true; 
+        deathCause = 'pit';
+        renderAll();
+        return false; 
+      }
+      // WUMPUS DEATH - specific message
+      if(cell.wump) { 
+        gameOver = true; 
+        deathCause = 'wumpus';
+        renderAll();
+        return false; 
+      }
+      
+      if(cell.gold && !gameWin && !goldFound) {
+        isVictoryPending = true;
+        pendingVictoryCell = {x:nx, y:ny};
+        renderAll();
+        if(victoryTimer) clearTimeout(victoryTimer);
+        victoryTimer = setTimeout(() => { completeVictory(); }, 2000);
+        return true;
+      }
+      
+      perceiveAndLearn(nx,ny);
+    }
+    renderAll();
+    return true;
+  }
+
+  function autoCycle(){
+    if(gameOver || gameWin || isVictoryPending) { 
+      if(autoEnabled && (gameWin || isVictoryPending)) toggleAuto();
+      return; 
+    }
+    
+    let safeUnvisited = [], frontierCells = [], unknownCells = [];
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let key = cid(i,j);
+      if(!realWorld[key].visited) {
+        if(kbBelief[key].safe) safeUnvisited.push([i,j]);
+        else if(kbBelief[key].frontier) frontierCells.push([i,j]);
+        else unknownCells.push([i,j]);
+      }
+    }
+    
+    for(let i=safeUnvisited.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [safeUnvisited[i],safeUnvisited[j]]=[safeUnvisited[j],safeUnvisited[i]]; }
+    for(let i=frontierCells.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [frontierCells[i],frontierCells[j]]=[frontierCells[j],frontierCells[i]]; }
+    for(let i=unknownCells.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [unknownCells[i],unknownCells[j]]=[unknownCells[j],unknownCells[i]]; }
+    
+    function findPathTo(targets) {
+      let queue = [[agent.x, agent.y]];
+      let visitedSet = new Set([cid(agent.x,agent.y)]);
+      let parent = new Map();
+      while(queue.length) {
+        let [cx,cy] = queue.shift();
+        let neighbors = [];
+        if(inside(cx-1,cy)) neighbors.push([cx-1,cy]);
+        if(inside(cx+1,cy)) neighbors.push([cx+1,cy]);
+        if(inside(cx,cy-1)) neighbors.push([cx,cy-1]);
+        if(inside(cx,cy+1)) neighbors.push([cx,cy+1]);
+        for(let i=neighbors.length-1;i>0;i--){ let j=Math.floor(Math.random()*(i+1)); [neighbors[i],neighbors[j]]=[neighbors[j],neighbors[i]]; }
+        
+        for(let [tx,ty] of neighbors) {
+          let tid = cid(tx,ty);
+          if(visitedSet.has(tid)) continue;
+          visitedSet.add(tid);
+          parent.set(tid, [cx,cy]);
+          for(let [tx2,ty2] of targets) {
+            if(tx===tx2 && ty===ty2) {
+              let path = [];
+              let curId = tid;
+              while(parent.has(curId)) { let [px,py]=parent.get(curId); path.unshift([px,py]); curId = cid(px,py); }
+              path.push([tx,ty]);
+              return path;
+            }
+          }
+          queue.push([tx,ty]);
+        }
+      }
+      return null;
+    }
+    
+    let path = findPathTo(safeUnvisited);
+    if(!path && frontierCells.length>0) path = findPathTo(frontierCells);
+    if(!path && unknownCells.length>0) path = findPathTo(unknownCells);
+    if(path && path.length>1) attemptMove(path[1][0], path[1][1]);
+    renderAll();
+  }
+
+  function updateUI(){
+    document.getElementById('moveCount').innerText = movesTotal;
+    let safeKnown = Object.values(kbBelief).filter(b=>b.safe).length;
+    document.getElementById('safeCount').innerText = safeKnown;
+    document.getElementById('inferenceCount').innerText = inferenceTotal;
+    
+    let frontierCount=0, unknownCount=0, visitedCount=0;
+    for(let i=0;i<ROWS;i++) for(let j=0;j<COLS;j++) {
+      let key = cid(i,j);
+      if(realWorld[key].visited) visitedCount++;
+      else if(kbBelief[key].safe) visitedCount++;
+      else if(kbBelief[key].frontier) frontierCount++;
+      else unknownCount++;
+    }
+    document.getElementById('frontierCount').innerText = frontierCount;
+    document.getElementById('unknownCount').innerText = unknownCount;
+    document.getElementById('visitedCount').innerText = visitedCount;
+    
+    let cell = realWorld[cid(agent.x, agent.y)];
+    if(!gameOver && !gameWin) {
+      document.getElementById('breezeStat').innerText = cell.breeze ? 'ON' : 'OFF';
+      document.getElementById('breezeStat').className = `sensor-status ${cell.breeze ? 'status-on' : 'status-off'}`;
+      document.getElementById('stenchStat').innerText = cell.stench ? 'ON' : 'OFF';
+      document.getElementById('stenchStat').className = `sensor-status ${cell.stench ? 'status-on' : 'status-off'}`;
+      let hasGold = cell.gold;
+      document.getElementById('goldStat').innerText = hasGold ? 'YES' : 'NO';
+      document.getElementById('goldStat').className = `sensor-status ${hasGold ? 'status-on' : 'status-off'}`;
+      let glitterText = 'NONE';
+      let glitterClass = 'status-off';
+      if(gameWin || goldFound) {
+        glitterText = '⭐ COLLECTED';
+        glitterClass = 'status-collected';
+      } else if(isVictoryPending && pendingVictoryCell && pendingVictoryCell.x === agent.x && pendingVictoryCell.y === agent.y) {
+        glitterText = '✨ GLITTER';
+        glitterClass = 'status-glitter';
+      } else if(hasGold) {
+        glitterText = '✨ GLITTER';
+        glitterClass = 'status-glitter';
+      }
+      document.getElementById('glitterStat').innerText = glitterText;
+      document.getElementById('glitterStat').className = `sensor-status ${glitterClass}`;
+    } else {
+      document.getElementById('breezeStat').innerText = 'OFF';
+      document.getElementById('breezeStat').className = 'sensor-status status-off';
+      document.getElementById('stenchStat').innerText = 'OFF';
+      document.getElementById('stenchStat').className = 'sensor-status status-off';
+      document.getElementById('goldStat').innerText = 'NO';
+      document.getElementById('goldStat').className = 'sensor-status status-off';
+      document.getElementById('glitterStat').innerText = 'NONE';
+      document.getElementById('glitterStat').className = 'sensor-status status-off';
+    }
+    
+    let statusDiv = document.getElementById('gameStatusPanel');
+    if(gameWin || goldFound) { 
+      statusDiv.innerHTML = '🏆 VICTORY! GOLD COLLECTED ⭐'; 
+      statusDiv.className = 'game-status-alert status-victory'; 
+    }
+    else if(isVictoryPending) { 
+      statusDiv.innerHTML = '✨ GOLD FOUND! COLLECTING... ✨'; 
+      statusDiv.className = 'game-status-alert status-victory-pending'; 
+    }
+    else if(gameOver) {
+      let deathMsg = '';
+      if(deathCause === 'pit') {
+        deathMsg = '🕳️ Agent fell into a pit!';
+      } else if(deathCause === 'wumpus') {
+        deathMsg = '🐉 Agent was killed by the Wumpus!';
+      } else {
+        deathMsg = '💀 AGENT ELIMINATED';
+      }
+      statusDiv.innerHTML = deathMsg;
+      statusDiv.className = 'game-status-alert status-dead';
+    }
+    else { 
+      statusDiv.innerHTML = '🔮 ACTIVE · HUNTING'; 
+      statusDiv.className = 'game-status-alert status-active'; 
+    }
+  }
+
+  function renderGrid(){
+    let gridDiv = document.getElementById('wumpusGrid');
+    let cellSize = Math.min(70, Math.floor((window.innerWidth-500)/Math.max(COLS,6)));
+    gridDiv.style.gridTemplateColumns = `repeat(${COLS}, ${Math.max(50, cellSize)}px)`;
+    gridDiv.innerHTML = '';
+    
+    for(let i=0;i<ROWS;i++){
+      for(let j=0;j<COLS;j++){
+        let cell = realWorld[cid(i,j)];
+        let kb = kbBelief[cid(i,j)];
+        let isAgent = (agent.x===i && agent.y===j && !gameOver && !gameWin);
+        let isPendingGold = (pendingVictoryCell && pendingVictoryCell.x===i && pendingVictoryCell.y===j && isVictoryPending);
+        let div = document.createElement('div'); 
+        div.className = 'grid-cell';
+        
+        if(isAgent) div.classList.add('cell-agent');
+        else if(revealActive && (cell.pit || cell.wump)) div.classList.add('cell-danger');
+        else if(kb.safe) div.classList.add('cell-safe');
+        else if(!cell.visited && kb.frontier) div.classList.add('cell-frontier');
+        else if(isPendingGold) div.classList.add('cell-gold-glow');
+        else if(cell.visited) div.classList.add('cell-visited');
+        else div.classList.add('cell-unknown');
+        
+        let inner = `<div class="coord-text">${i},${j}</div>`;
+        if(isAgent) inner += `<div class="cell-icon">🕵️</div>`;
+        else if(revealActive && cell.pit) inner += `<div class="cell-icon">🕳️</div>`;
+        else if(revealActive && cell.wump) inner += `<div class="cell-icon">🐉</div>`;
+        else if(isPendingGold) inner += `<div class="cell-icon">✨💰</div>`;
+        else if(cell.visited && cell.gold && !gameWin) inner += `<div class="cell-icon">✨</div>`;
+        else if(cell.visited && cell.gold && gameWin) inner += `<div class="cell-icon">⭐</div>`;
+        
+        if(cell.visited && (cell.breeze || cell.stench)){
+          let icons = []; if(cell.breeze) icons.push('🌊'); if(cell.stench) icons.push('💨');
+          inner += `<div class="percept-symbol">${icons.join(' ')}</div>`;
+        }
+        
+        div.innerHTML = inner;
+        div.onclick = (function(r,c){ return function(){ if(!autoEnabled && !gameOver && !gameWin && !isVictoryPending) attemptMove(r,c); }; })(i,j);
+        gridDiv.appendChild(div);
+      }
+    }
+  }
+
+  function renderAll(){ renderGrid(); updateUI(); }
+
+  function startHunt(){
+    if(victoryTimer) { clearTimeout(victoryTimer); victoryTimer = null; }
+    pendingVictoryCell = null;
+    isVictoryPending = false;
+    deathCause = null;
+    if(autoEnabled) toggleAuto();
+    resetKB();
+    agent = { x:0, y:0 };
+    realWorld[cid(0,0)].visited = true;
+    kbBelief[cid(0,0)].visited = true;
+    perceiveAndLearn(0,0);
+    renderAll();
+  }
+
+  function toggleAuto(){
+    if(autoEnabled){
+      if(autoInterval) clearInterval(autoInterval);
+      autoEnabled=false;
+      document.getElementById('autoToggleBtn').innerHTML='▶ AUTO HUNT';
+      document.getElementById('autoToggleBtn').classList.remove('active-auto');
+    } else {
+      autoEnabled=true;
+      autoInterval = setInterval(()=>{ if(!gameOver && !gameWin && !isVictoryPending) autoCycle(); else if(autoEnabled && (gameWin || isVictoryPending)) toggleAuto(); }, 480);
+      document.getElementById('autoToggleBtn').innerHTML='⏹ STOP';
+      document.getElementById('autoToggleBtn').classList.add('active-auto');
+    }
+  }
+
+  document.getElementById('newHuntBtn').onclick = () => { if(autoEnabled) toggleAuto(); generateWorld(); startHunt(); };
+  document.getElementById('autoToggleBtn').onclick = () => { if(!gameOver && !gameWin && !autoEnabled && !isVictoryPending) toggleAuto(); else if(autoEnabled) toggleAuto(); else { generateWorld(); startHunt(); toggleAuto(); } };
+  document.getElementById('stepBtn').onclick = () => { if(!autoEnabled && !gameOver && !gameWin && !isVictoryPending) autoCycle(); };
+  document.getElementById('revealBtn').onclick = () => { revealActive = !revealActive; renderGrid(); };
+  document.getElementById('worldRows').onchange = () => { if(!autoEnabled){ generateWorld(); startHunt(); } };
+  document.getElementById('worldCols').onchange = () => { if(!autoEnabled){ generateWorld(); startHunt(); } };
+
+  generateWorld();
+  startHunt();
+</script>
+</body>
+</html>
